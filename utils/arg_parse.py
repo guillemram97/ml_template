@@ -31,40 +31,10 @@ def parse_args():
         help="Default is no.",
     )
     parser.add_argument(
-        "--strategy",
-        type=str,
-        default="b1",
-        help="What API call strategy is followed.",
-    )
-    parser.add_argument(
-        "--p_strat", type=float, help="Hyperparameter for the strategy."
-    )
-    parser.add_argument(
         "--temperature",
         type=float,
         default=1.0,
         help="Temperature for soft labels (softmax)",
-    )
-    parser.add_argument(
-        "--only_improve",
-        type=int,
-        default=0,
-        help="If 1, we don't keep a new model if it lowers accuracy",
-    )
-    parser.add_argument(
-        "--active",
-        type=str,
-        default='no',
-    )
-    parser.add_argument(
-        "--oracle",
-        type=int,
-        default=0,
-    )
-    parser.add_argument(
-        "--ignore_llm",
-        type=float,
-        default=0,
     )
     parser.add_argument(
         "--n_init",
@@ -172,26 +142,10 @@ def parse_args():
         type=int,
     )
     parser.add_argument(
-        "--perm",
-        type=int,
-    )
-    parser.add_argument(
         "--lora_scaling",
         type=float,
     )
-    parser.add_argument(
-        "--budget",
-        type=str,
-        help="Can be a list if strategy is NOT MV.",
-    )
-    parser.add_argument(
-        "--cost_ext",
-        type=int,
-    )
-    parser.add_argument(
-        "--retrain_freq",
-        type=int,
-    )
+
     parser.add_argument(
         "--is_classification",
         type=bool,

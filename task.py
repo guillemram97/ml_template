@@ -57,7 +57,7 @@ class Task:
             out = {}
             # Tokenizer will automatically set [BOS] <text> [EOS]
             out["input_ids"] = self.tokenizer(
-                batch["inputs"],
+                batch["input"],
                 padding=False,
                 max_length=args.max_length,
                 truncation=True,
@@ -70,9 +70,7 @@ class Task:
                 else:
                     out["llm_soft"] = select_classes(batch["llm_soft"])
             if self.is_regression:
-                pdb.set_trace()
-                #he de convertirho a numeros!
-                out["output"] = batch["output"]
+                out["output"] = [float(num) for num in batch["output"]]
   
             return out
 
@@ -123,44 +121,60 @@ class Task:
         )
         eval_collator = partial(collate_for_eval, data_collator)
 
-        processed_data = {}
+        #processed_data = {}
+        #max_samples = getattr(args, f"{split}_samples")
+        #self.raw_data = random_subset(
+        #    dataset=self.raw_data,
+        #    max_samples=max_samples,
+        #    seed=args.seed,
+        #)
 
-        for split in self.data_path.keys():
-            max_samples = getattr(args, f"{split}_samples")
-            self.raw_data[split] = random_subset(
-                dataset=self.raw_data[split],
-                max_samples=max_samples,
-                seed=args.seed,
-            )
-
-            self.raw_data[split] = arrow_dataset.Dataset.from_list(
-                list(self.raw_data[split])
-            )
-            processed_data[split] = self.raw_data[split].map(
-                partial(process_data_to_model_inputs, split in ["test"]),
-                batched=True,
-                batch_size=args.per_device_eval_batch_size,
-                remove_columns=self.raw_data[split].column_names,
-            )
-        
-        aux = processed_data.train_test_split(test_size=0.1)
+        self.raw_data = arrow_dataset.Dataset.from_list(
+            list(self.raw_data)
+        )
+        aux = self.raw_data.train_test_split(test_size=0.1)
         aux_2 = aux['train'].train_test_split(test_size=0.1)
 
+
+        train_data = aux_2['train'].map(
+            partial(process_data_to_model_inputs, False),
+            batched=True,
+            batch_size=args.per_device_eval_batch_size,
+            remove_columns=self.raw_data.column_names,
+        )
+
+        validation_data = aux_2['test'].map(
+            partial(process_data_to_model_inputs, True),
+            batched=True,
+            batch_size=args.per_device_eval_batch_size,
+            remove_columns=self.raw_data.column_names,
+        )
+
+        test_data = aux['test'].map(
+            partial(process_data_to_model_inputs, True),
+            batched=True,
+            batch_size=args.per_device_eval_batch_size,
+            remove_columns=self.raw_data.column_names,
+        )
+
+
+
+
         train_dataloader = DataLoader(
-            aux_2['train'],
+            train_data,
             shuffle=True,
             collate_fn=data_collator,
-            batch_size=args.per_device_eval_batch_size,
+            batch_size=args.per_device_train_batch_size,
         )
 
         eval_dataloader = DataLoader(
-            aux_2['test'],
+            validation_data,
             collate_fn=eval_collator,
             batch_size=args.per_device_eval_batch_size,
         )
 
         test_dataloader = DataLoader(
-            aux['test'],
+            test_data,
             collate_fn=eval_collator,
             batch_size=args.per_device_eval_batch_size,
         )

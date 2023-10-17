@@ -51,6 +51,7 @@ class custom_model:
         self.save_checkpoint = args.save_checkpoint
         self.metric = Metric(self.args)
         self.metric_test = Metric(self.args)
+        self.dic_classes = None
 
     def init_model(self):
         set_seeds(self.seed)
@@ -98,7 +99,7 @@ class custom_model:
                     epoch=self.iteration,
                 )
 
-    def train(self, train_dataloader, eval_dataloader):
+    def train(self):
         torch.cuda.empty_cache()
         self.early_stopper = EarlyStopper(self.args.early_stop)
         self.iteration += 1
@@ -110,9 +111,8 @@ class custom_model:
         self.init_model()
 
         logger.info(f"  Running task {self.task_name}")
-        logger.info(f"  Num examples = {len(train_dataloader.dataset)}")
+        logger.info(f"  Num examples = {len(self.train_dataloader.dataset)}")
 
-        self.data_amount = len(train_dataloader.dataset)+ len(eval_dataloader.dataset)
         # Re-initialise lr_scheduler + optimized
         optimizer = load_optimizer(self.model, self.args)
 
@@ -120,9 +120,9 @@ class custom_model:
             name=self.args.lr_scheduler_type,
             optimizer=optimizer,
             num_warmup_steps=int(
-                self.args.warmup * self.args.num_train_epochs * len(train_dataloader.dataset) #aixo esta be? no hauria de ser len(train_dataloader.dataset)?
+                self.args.warmup * self.args.num_train_epochs * len(self.train_dataloader.dataset) #aixo esta be? no hauria de ser len(train_dataloader.dataset)?
             ),
-            num_training_steps=self.args.num_train_epochs * len(train_dataloader.dataset), #aixo esta be? no hauria de ser len(train_dataloader.dataset)?
+            num_training_steps=self.args.num_train_epochs * len(self.train_dataloader.dataset), #aixo esta be? no hauria de ser len(train_dataloader.dataset)?
         )
 
         # Move to the device
@@ -133,7 +133,7 @@ class custom_model:
         for epoch in range(0, self.args.num_train_epochs):
             total_loss = train_epoch(
                 model=self.model,
-                train_dataloader=train_dataloader,
+                train_dataloader=self.train_dataloader,
                 accelerator=self.accelerator,
                 lr_scheduler=lr_scheduler,
                 optimizer=optimizer,
@@ -148,7 +148,7 @@ class custom_model:
                 eval_metrics = evaluate_model(
                     model=self.model,
                     accelerator=self.accelerator,
-                    eval_dataloader=eval_dataloader,
+                    eval_dataloader=self.eval_dataloader,
                     metric=self.metric,
                     args=self.args,
                     dic_classes=self.dic_classes,
@@ -161,7 +161,7 @@ class custom_model:
                 self.early_stopper.update(eval_metrics[0], self.model)
                 self.model.cuda()
 
-                log_msg = f"Epoch {epoch} -----> Average_Train_loss: {total_loss / len(train_dataloader.dataset)} ===== Eval_metric: {eval_metrics[0]}"
+                log_msg = f"Epoch {epoch} -----> Average_Train_loss: {total_loss / len(self.train_dataloader.dataset)} ===== Eval_metric: {eval_metrics[0]}"
                 logger.info(log_msg)
 
                 if self.run is not None and LOG_TRAIN:
@@ -170,7 +170,7 @@ class custom_model:
             # log metrics are desactivated
             if self.run is not None and LOG_TRAIN:
                 stats = {
-                    "loss": total_loss / len(train_dataloader.dataset),
+                    "loss": total_loss / len(self.train_dataloader.dataset),
                     "main_lr": optimizer.param_groups[0]["lr"],
                 }
 
@@ -192,5 +192,5 @@ class custom_model:
 
         self.evaluate()
         if self.save_checkpoint != 'no':
-            PATH_DEST = 'checkpoints/'+self.task_name+'/'+str(self.seed)+'_'+str(len(train_dataloader.dataset)+len(eval_dataloader.dataset))+'.pt'
+            PATH_DEST = 'checkpoints/'+self.task_name+'/'+str(self.seed)+'_'+str(len(self.train_dataloader.dataset)+len(eval_dataloader.dataset))+'.pt'
             torch.save(self.model.state_dict(), PATH_DEST)
