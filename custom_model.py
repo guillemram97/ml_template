@@ -34,6 +34,23 @@ logger = get_logger(__name__)
 LOG_TRAIN = True
 
 
+class T5Regressor(nn.Module):
+    
+    def __init__(self, T5, drop_rate=0.2, freeze_camembert=False):
+        
+        super(T5Regressor, self).__init__()
+        D_in, D_out = 768, 1
+        
+        self.T5 = T5
+        self.regressor = nn.Sequential(
+            nn.Dropout(drop_rate),
+            nn.Linear(D_in, D_out))
+    def forward(self, input_ids, attention_mask, labels):
+        outputs = self.T5.forward(input_ids, attention_mask, labels, output_hidden_states=True, return_dict=True)
+        outputs = outputs.decoder_hidden_states[-1]
+        outputs = self.regressor(outputs)
+        return outputs
+
 class custom_model:
     def __init__(self, args, task, run, accelerator):
         self.cache = []
@@ -65,10 +82,11 @@ class custom_model:
                 "seed": self.seed,
             },
         )
-        head = RegressionHead(self.model.model.config.hidden_size)
-        self.model.model.lm_head = head
-        for name, param in self.model.model.lm_head.named_parameters():
-            param.requires_grad = True
+        self.model = T5Regressor(T5=self.model) #posar el droput
+        #head = RegressionHead(self.model.model.config.hidden_size)
+        #self.model.model.lm_head = head
+        #for name, param in self.model.model.lm_head.named_parameters():
+        #    param.requires_grad = True
         return
 
     def init_checkpoint(self, PATH):

@@ -50,6 +50,9 @@ def finish_training(accelerator, model, eval_metric, args):
             save_function=accelerator.save,
         )
 
+def regression_loss(prediction, target):
+    loss = torch.nn.functional.mse_loss(prediction, target)
+    return loss
 
 # de moment nomes generar prob de un token
 def soft_loss(logits, soft_labels, temperature=1):
@@ -93,31 +96,17 @@ def train_epoch(
 
     freq = 100
 
-    pdb.set_trace()
     # SHA DARREGLAR!!!!
     for step, batch in enumerate(train_dataloader):
         # potser sha de generar de forma diferent si es regression?
         outputs = model(
             input_ids=batch.input_ids,
             attention_mask=batch.attention_mask,
-            labels=batch.output,
+            labels=torch.tensor([[0] for example in batch.input_ids]).cuda(),
         )
 
-        if args.soft_labels:
-            if args.target == "gold":
-                loss = soft_loss_weighted(
-                    outputs[1][:, 0, dic_classes].cpu(),
-                    batch.gold_soft.cpu().float(),
-                    args.temperature,
-                )
-            else:
-                loss = soft_loss(
-                    outputs[1][:, 0, dic_classes].cpu(),
-                    batch.llm_soft.cpu(),
-                    args.temperature,
-                )
-        else:
-            loss = outputs.loss
+        
+        loss = regression_loss(outputs,batch.output)
 
         total_loss += loss.detach().float().item()
         losses.append(loss.detach().float().item())
