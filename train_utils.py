@@ -96,18 +96,12 @@ def train_epoch(
     pdb.set_trace()
     # SHA DARREGLAR!!!!
     for step, batch in enumerate(train_dataloader):
-        if args.target == "gold":
-            outputs = model(
-                input_ids=batch.input_ids,
-                attention_mask=batch.attention_mask,
-                labels=batch.gold_hard,
-            )
-        else:
-            outputs = model(
-                input_ids=batch.input_ids,
-                attention_mask=batch.attention_mask,
-                labels=batch.llm_hard,
-            )
+        # potser sha de generar de forma diferent si es regression?
+        outputs = model(
+            input_ids=batch.input_ids,
+            attention_mask=batch.attention_mask,
+            labels=batch.output,
+        )
 
         if args.soft_labels:
             if args.target == "gold":
