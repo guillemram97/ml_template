@@ -176,6 +176,8 @@ class custom_model:
 
                 # early stopper requires an increasingly increasing metric
                 # we can use epochs instead of eval_metrics[0]
+
+                #aixo estara maaal per al MSE!
                 self.early_stopper.update(eval_metrics[0], self.model)
                 self.model.cuda()
 
@@ -183,7 +185,9 @@ class custom_model:
                 logger.info(log_msg)
 
                 if self.run is not None and LOG_TRAIN:
-                    self.run[f"{self.iteration}-eval"].log(eval_metrics[0], step=epoch)
+                    self.run[f"{self.iteration}-eval_Pearson"].log(eval_metrics[0], step=epoch)
+                    self.run[f"{self.iteration}-eval_mse"].log(eval_metrics[1], step=epoch)
+                    self.run[f"{self.iteration}-eval_custom"].log(eval_metrics[2], step=epoch)
 
             # log metrics are desactivated
             if self.run is not None and LOG_TRAIN:

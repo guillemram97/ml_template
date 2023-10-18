@@ -53,7 +53,7 @@ class Metric:
         self.references = []
 
     def add_batch(self, predictions, references):
-        if not self.soft:
+        '''if not self.soft:
             if type(predictions[0]) != str:
                 predictions = self.tokenizer.batch_decode(
                     predictions,
@@ -66,19 +66,40 @@ class Metric:
                     skip_special_tokens=True,
                     clean_up_tokenization_spaces=True,
                 )
+        '''
         self.predictions = self.predictions + predictions
         self.references = self.references + references
 
     def compute(self):
-        if self.soft:
+        '''if self.soft:
             metrics = evaluate_soft(
                 self.predictions, self.references, self.args.temperature
             )
         else:
             metrics = evaluate_hard(self.predictions, self.references, self.task_name)
+        '''
+        metrics = evaluate_regression(self.predictions, self.references)
         self.reset()
         return metrics
 
+
+def evaluate_regression(predictions, data):
+    predictions = np.array(predictions)
+    data = np.array(data)
+    pearson = pearsonr(predictions, data)[0]
+    mse = np.mean((predictions - data) ** 2)
+    custom = []
+    for idx, pred in enumerate(predictions):
+        if predictions[idx] > 5:
+            if data[idx] > 5:
+                custom.append(1)
+            else:
+                custom.append(0)
+        elif data[idx] > 5:
+            custom.append(0)
+        else:
+            custom.append(1)
+    return [pearson, mse, sum(custom) / len(custom)]
 
 def evaluate_soft(predictions, data, temperature=1):
     cross_entropy_score = []

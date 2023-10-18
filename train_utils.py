@@ -133,38 +133,14 @@ def evaluate_model(
 
     for step, batch in tqdm(enumerate(eval_dataloader)):
         with torch.no_grad():
-            if metric.soft:
-                predictions = model.generate(
-                    **{
-                        "input_ids": batch["input_ids"].cuda(),
-                        "attention_mask": batch["attention_mask"].cuda(),
-                    },
-                    max_new_tokens=1,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                )
-                predictions = list(np.array(predictions[1][0].cpu())[:, dic_classes])
-
-                # fix a formatting bug
-                if type(batch[target + "_soft"]) == torch.Tensor:
-                    batch[target + "_soft"] = [aux for aux in batch[target + "_soft"]]
-                predictions, references = accelerator.gather(
-                    (predictions, batch[target + "_soft"])
-                )
-            else:
-                predictions = model.generate(
-                    **{
-                        "input_ids": batch["input_ids"],
-                        "attention_mask": batch["attention_mask"],
-                    },
-                    num_beams=args.num_beams,
-                    max_length=args.max_out_length,
-                    decoder_start_token_id=model.model.config.bos_token_id,
-                )
-                predictions, references = accelerator.gather(
-                    (predictions, batch[target + "_hard"])
-                )
-
+            predictions = model.forward(
+                input_ids=batch.input_ids,
+                attention_mask=batch.attention_mask,
+                labels=torch.tensor([[0] for example in batch.input_ids]).cuda(),
+            )
+            predictions = [float(pred[0][0]) for pred in predictions]
+            predictions, references = accelerator.gather(
+                    (predictions, batch["output"]))
         # If we are in a multiprocess environment, the last batch has duplicates
         if accelerator.num_processes > 1:
             if step == len(eval_dataloader) - 1:
